@@ -1,7 +1,6 @@
 import serial
 import mysql.connector
 import time
-# from time import time, gmtime, strftime
 from datetime import datetime
 import serial.tools.list_ports
 import os
@@ -9,7 +8,7 @@ import os
 ARDUINO = "/dev/ttyUSB0"
 BAUDRATE = 9600
 TIMEOUT = 1
-arduinoConection = None
+arduinoConn = None
 logfile = "monitor.log"
 
 # ports = list(serial.tools.list_ports.comports())
@@ -37,20 +36,20 @@ def logWrite(strMessage):
 
 # abertura de porta serie
 try:
-	arduinoConection = serial.Serial(ARDUINO, BAUDRATE, timeout=TIMEOUT)
-	logWrite("Ligacao com Arduino em [ %s ] com sucesso" % arduinoConection.name)
+	arduinoConn = serial.Serial(ARDUINO, BAUDRATE, timeout=TIMEOUT)
+	logWrite("Ligacao com Arduino em [ %s ] com sucesso" % arduinoConn.name)
 	time.sleep(1.8)  # estabiliza a ligacao
-except:
-	logWrite("Ligacao com Arduino em [ %s ] nao efetuada" % arduinoConection.name)
+except Exception:
+	logWrite("Ligacao com Arduino em [ %s ] nao efetuada" % arduinoConn.name)
 
 try:
-	if arduinoConection.isOpen():  # ligacao aberta
+	if arduinoConn.isOpen():  # ligacao aberta
 
-		conn = mysql.connector.Connect(host='127.0.0.1', user='monitor', password='monitor', database='monitor')
-		c = conn.cursor()
+		dbConn = mysql.connector.Connect(host='127.0.0.1', user='monitor', password='monitor', database='monitor')  # ligacao a bd
+		dbCursor = dbConn.cursor()  # abre um cursor
 
-		while arduinoConection.in_waiting:
-			arduinoData = arduinoConection.readline()
+		while arduinoConn.in_waiting:
+			arduinoData = arduinoConn.readline()  # le linha inteira do buffer
 
 			pieces = arduinoData.split("\t")
 
@@ -69,16 +68,17 @@ try:
 							"VALUES (%s, %s, %s, %s, %s, %s, %s, %s)")
 			dataReading = (timestamps, node, ct, realPower, apparentPower, supplyVoltage, irms, powerFactor)
 
-			c.execute(addReading, dataReading)
-			conn.commit()
+			dbCursor.execute(addReading, dataReading)
+			dbConn.commit()
 
 			# print(arduinoData)
 			time.sleep(5)  # tempo de espera 5 segundos
 
-		arduinoConection.close
-		c.close()
-		conn.close()
+		arduinoConn.close
+		dbCursor.close()  # fecha cursor
+		dbConn.close()  # fecha ligacao a base de dados
 
 except KeyboardInterrupt:  # captura termino ctrl+c
-	arduinoConection.close
-	logWrite("Ligacao com Arduino em [ %s ] terminada com sucesso" % arduinoConection.name)
+	if arduinoConn.isOpen():
+		arduinoConn.close
+	logWrite("Ligacao com Arduino em [ %s ] terminada com sucesso" % arduinoConn.name)
