@@ -4,12 +4,13 @@ import time
 # from time import time, gmtime, strftime
 from datetime import datetime
 import serial.tools.list_ports
+import os
 
 ARDUINO = "/dev/ttyUSB0"
 BAUDRATE = 9600
 TIMEOUT = 1
 arduinoConection = None
-realPower = 0.0
+logfile = "monitor.log"
 
 # ports = list(serial.tools.list_ports.comports())
 # for p in ports:
@@ -23,13 +24,24 @@ realPower = 0.0
 # print row[4]
 # c.close()
 
+
+def logWrite(strMessage):
+	if os.path.exists(logfile):
+		append_write = 'a'
+	else:
+		append_write = 'w'
+	log = open(logfile, append_write)
+	log.write(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + " " + strMessage + '\n')
+	log.close()
+
+
 # abertura de porta serie
 try:
 	arduinoConection = serial.Serial(ARDUINO, BAUDRATE, timeout=TIMEOUT)
-	print "Ligacao com Arduino em [ %s ] com sucesso\t" % arduinoConection.name
+	logWrite("Ligacao com Arduino em [ %s ] com sucesso" % arduinoConection.name)
 	time.sleep(1.8)  # estabiliza a ligacao
 except:
-	print "Ligacao com Arduino em [ %s ] nao efetuada\t" % arduinoConection.name
+	logWrite("Ligacao com Arduino em [ %s ] nao efetuada" % arduinoConection.name)
 
 try:
 	if arduinoConection.isOpen():  # ligacao aberta
@@ -42,6 +54,7 @@ try:
 
 			pieces = arduinoData.split("\t")
 
+			# Estrutura de cada leitura
 			timestamps = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
 			node = 1
 			ct = 1
@@ -57,10 +70,9 @@ try:
 			dataReading = (timestamps, node, ct, realPower, apparentPower, supplyVoltage, irms, powerFactor)
 
 			c.execute(addReading, dataReading)
-
 			conn.commit()
 
-			print(arduinoData)
+			# print(arduinoData)
 			time.sleep(5)  # tempo de espera 5 segundos
 
 		arduinoConection.close
@@ -69,5 +81,4 @@ try:
 
 except KeyboardInterrupt:  # captura termino ctrl+c
 	arduinoConection.close
-	print "Ligacao com Arduino em [ %s ] terminada com sucesso\t" % arduinoConection.name
-
+	logWrite("Ligacao com Arduino em [ %s ] terminada com sucesso" % arduinoConection.name)
